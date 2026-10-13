@@ -1,0 +1,8 @@
+{
+  "goal": "Make the fetch client retry on HTTP 429 without exceeding the rate limit.",
+  "mandatory_constraints": [
+    "Never retry more than 5 times for one request.",
+    "Do not change the public function signature of fetch_page.",
+    "Do not commit or push."
+  ]
+}

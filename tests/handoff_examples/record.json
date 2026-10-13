@@ -1,0 +1,20 @@
+{
+  "goal": "Make the fetch client retry on HTTP 429 without exceeding the rate limit.",
+  "success_test": "test_retry_backoff passes and no request is retried more than 5 times.",
+  "mandatory_constraints": [
+    "Never retry more than 5 times for one request.",
+    "Do not change the public function signature of fetch_page.",
+    "Do not commit or push."
+  ],
+  "decisions": [
+    {"decision": "Use exponential backoff that honors the Retry-After header.", "reason": "the server sends Retry-After on 429", "evidence": ["tools/call_007.txt"]}
+  ],
+  "rejected_options": ["A fixed one second sleep, because it still hit 429 in testing."],
+  "facts": [
+    {"fact": "test_retry_backoff now passes.", "evidence": ["tests/run_042.txt"]}
+  ],
+  "open_questions": ["Should backoff have jitter?"],
+  "next_action": "Add jitter behind a flag and rerun the tests.",
+  "changed_state": ["client/fetch.py, retry loop added"],
+  "version": "1"
+}

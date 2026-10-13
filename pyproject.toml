@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "longterm-ai"
+version = "0.1.0"
+description = "Model-independent, retrieval-first framework for reliable, resource-aware, long-running AI work (Phase 0 + Phase 1 core)."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = []  # stdlib only, by design (spec section 2.8)
+
+[project.optional-dependencies]
+# No test deps: tests use the stdlib unittest runner.
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+longterm_ai = ["handoff/summarizer_prompt.md"]
