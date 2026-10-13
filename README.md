@@ -5,10 +5,10 @@ long-running AI work**. The model proposes and reasons; the framework enforces p
 in code, bounds tool output, accounts for cost honestly, verifies completion with
 deterministic checks, and carries state across a model handoff.
 
-This repository implements the **Phase 0 + Phase 1 core** of the
-PROJECT_FOUNDATION design spec v0.1.0. It is a real, installable,
+This repository implements the **Phase 0, Phase 1, and Phase 2** of the
+PROJECT_FOUNDATION design spec. It is a real, installable,
 fully-tested library — **stdlib only, no runtime dependencies** — that runs end to end
-with a built-in fake model, so nothing here needs an API key or network.
+with built-in fake models or connects to real providers (OpenAI, Anthropic, Gemini).
 
 > Honesty note (spec rule): a design document is not an implementation. This README
 > marks what is implemented and tested versus what is deliberately deferred. Nothing
@@ -18,9 +18,10 @@ with a built-in fake model, so nothing here needs an API key or network.
 
 ```bash
 python -m pip install -e .          # Python 3.12+
-python -m unittest discover tests   # 77 tests, all stdlib
+python -m unittest discover tests   # 115 tests, all stdlib
 python examples/demo.py             # end-to-end task run, verified complete
 python benchmarks/naive_vs_framework.py   # measured token saving on a fixture
+longterm --help                     # CLI commands (verify, rebuild, run)
 ```
 
 ## What it does (the five things that make AI work cheaper and safer)
@@ -79,13 +80,16 @@ src/longterm_ai/
   policy.py         risk classes, fail-closed authorization, approval binding
   tools.py          registry + gateway + bounded envelope + reducers + artifact store
   verification.py   deterministic verifier (exit code / file exists / schema valid)
-  runtime.py        state machine, run loop, checkpoints, side-effect reconciliation
+  runtime.py        state machine, run loop, checkpoints + resume, side-effect reconciliation
+  sqlite_store.py   SQLite checkpoint store (atomic, concurrent-safe, stdlib only)
+  cli.py            CLI interface (verify, rebuild, run)
   adapters.py       FakeModel + EchoModel (no provider, no key)
+  providers/        real provider adapters (OpenAI, Anthropic, Gemini)
   handoff/          provider-neutral handoff with a checked summary (spec 22-25)
-tests/              77 stdlib unittest tests
+tests/              115 stdlib unittest tests
 examples/demo.py    end-to-end run
 benchmarks/         naive-vs-framework token comparison
-docs/decisions/     decision records (see 0001-scope.md)
+docs/decisions/     decision records (0001-scope.md, 0002-phase2.md)
 ```
 
 ## Requirement → test map
@@ -98,7 +102,7 @@ docs/decisions/     decision records (see 0001-scope.md)
 | 008 | usage honest; unknown never 0 | `telemetry.py` · `test_telemetry` |
 | 009 / 013 | acceptance criteria; no verified-complete until they pass | `verification.py`, `runtime` · `test_verification`, `test_runtime` |
 | 010 | approval bound to the exact action | `policy.ApprovalStore` · `test_policy` |
-| 011 / 017 | checkpoints rebuildable; schema-versioned records | `runtime.CheckpointStore`, `handoff.record` · `test_runtime`, `test_handoff` |
+| 011 / 017 | checkpoints rebuildable; schema-versioned records | `runtime.CheckpointStore`, `sqlite_store.py`, `handoff.record` · `test_runtime`, `test_sqlite_store`, `test_handoff` |
 | 012 | retries bounded; account for side effects | `runtime.should_retry` · `test_runtime` |
 | 015 | core tested without a provider | whole suite runs on `FakeModel` |
 | 016 | every state transition validated | `runtime.TaskStateMachine` · `test_runtime` |
@@ -108,16 +112,16 @@ docs/decisions/     decision records (see 0001-scope.md)
 
 ## Implemented vs deferred
 
-**Implemented and tested:** contracts, error taxonomy, fail-closed policy + approvals,
+**Implemented and tested (Phase 0 + 1 + 2):** contracts, error taxonomy, fail-closed policy + approvals,
 tool gateway with bounded envelopes + reducers + artifact store, deterministic verifier,
 usage/cost accounting + events, task state machine, JSON schema-versioned checkpoints,
 authoritative tool log + side-effect reconciliation + retry guard, fake/echo adapters,
-and the provider-neutral handoff (spec sections 22–25).
+provider-neutral handoff (spec sections 22–25), automatic checkpoint resume (`resume=True`),
+SQLite checkpoint backend (`SqliteCheckpointStore`), real provider adapters (`OpenAIAdapter`,
+`AnthropicAdapter`, `GeminiAdapter`), and CLI (`longterm`).
 
-**Deliberately deferred** (design intent only, not built here): retrieval/search engine,
-SQLite memory backend, semantic handoff checker layers 2–3 (need a real model), automatic
-checkpoint resume wired into the run loop, real provider adapters, a CLI, and any
-benchmark result beyond the single included fixture. See `docs/decisions/0001-scope.md`.
+**Deliberately deferred** (Phase 3+ design intent): retrieval/search engine ("retrieval-first" engine),
+semantic handoff checker layers 2–3 (need a real model evaluator), and expanded benchmarks. See `docs/decisions/0001-scope.md` and `0002-phase2.md`.
 
 ## Provenance
 

@@ -4,6 +4,9 @@ Spec section 11; state transitions follow overlay section 4. Completion routes o
 through ``verifying`` so a task cannot be reported complete without its criteria
 passing (REQ 013). Side-effect truth comes from the authoritative tool log, never
 from the model's own claims (GPT section 29.2, Grok section 31 point 6).
+
+Phase 2 additions: CheckpointStore.delete(), Framework.ckpt_store,
+and resume= parameter on Framework.run() (ADR 0002).
 """
 from __future__ import annotations
 
@@ -188,6 +191,14 @@ class CheckpointStore:
             raise UnsupportedSchemaVersion(f"checkpoint schema {version} != {CHECKPOINT_SCHEMA_VERSION}")
         return Checkpoint(**raw)
 
+    def delete(self, task_id: str) -> None:
+        """Remove the checkpoint file once a task reaches a terminal state."""
+        path = self._path(task_id)
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            pass  # best-effort; a stale file is not fatal
+
 
 # --------------------------------------------------------------------------- #
 # Framework / run loop
@@ -249,33 +260,63 @@ class Framework:
         )
         self.estimator = RoughTokenEstimator()
         self.max_tool_attempts = max_tool_attempts
+        self.ckpt_store = CheckpointStore(self.state_dir)
 
-    def run(self, task: Task, task_id: str = "task") -> RunResult:
+    def run(self, task: Task, task_id: str = "task", *, resume: bool = False) -> RunResult:
+        """Run the task, optionally resuming from the last saved checkpoint.
+
+        When ``resume=True`` and a checkpoint for *task_id* exists the run loop
+        restores ``steps`` and the tool log from that checkpoint and continues from
+        the saved status, skipping the normal PLANNING transition. A fresh
+        :class:`UsageAccountant` is used for the resumed session (prior-session token
+        counts are not carried over). After every model call the in-progress state is
+        persisted; on any terminal exit the checkpoint file is deleted.
+        """
         sm = TaskStateMachine()
         acct = UsageAccountant()
         log = ToolLog()
-        sm.transition(TaskStatus.PLANNING, "start")
-        sm.transition(TaskStatus.RUNNING, "plan ready")
+        steps = 0
+
+        # --- optional resume ---
+        if resume:
+            cp = self.ckpt_store.load(task_id)
+            if cp is not None:
+                log = ToolLog.from_list(cp.tool_log)
+                steps = cp.completed_steps
+                # Restore the state machine to the saved status directly (it was valid
+                # when saved; re-running the normal transition sequence is not correct).
+                saved_status = TaskStatus(cp.status)
+                sm.status = saved_status
+                sm.history.append({"status": saved_status.value, "ts": time.time(), "cause": "resumed"})
+                self.events.record("checkpoint_resume", task_id=task_id, steps=steps, status=cp.status)
+            else:
+                # No checkpoint exists: run fresh.
+                sm.transition(TaskStatus.PLANNING, "start")
+                sm.transition(TaskStatus.RUNNING, "plan ready")
+        else:
+            sm.transition(TaskStatus.PLANNING, "start")
+            sm.transition(TaskStatus.RUNNING, "plan ready")
 
         system = build_system(task)
         missing = mandatory_present(system, task.mandatory_constraints)
         if missing:  # fail closed (REQ 021): never proceed without the constraints present
             sm.transition(TaskStatus.BLOCKED, "mandatory constraints missing")
-            return self._result(sm, None, acct, log, 0, f"mandatory constraints missing: {missing}")
+            return self._result(sm, None, acct, log, steps, f"mandatory constraints missing: {missing}")
 
         messages: list[dict[str, Any]] = [{"role": "user", "content": task.objective}]
         start = time.monotonic()
-        steps = 0
         report: VerificationReport | None = None
 
         while steps < task.max_steps:
             steps += 1
             if task.deadline_s is not None and (time.monotonic() - start) > task.deadline_s:
                 sm.transition(TaskStatus.BLOCKED, "deadline exceeded")
+                self.ckpt_store.delete(task_id)
                 return self._result(sm, report, acct, log, steps, "deadline exceeded")
             used = acct.input_tokens_estimated or 0
             if task.token_budget is not None and used > task.token_budget:
                 sm.transition(TaskStatus.BLOCKED, "budget exhausted")
+                self.ckpt_store.delete(task_id)
                 return self._result(sm, report, acct, log, steps, "token budget exhausted")
 
             req = ModelRequest(system=system, messages=messages,
@@ -283,6 +324,15 @@ class Framework:
             resp = self.model.generate(req)
             acct.add(resp.usage)
             self.events.record("model_call", model=resp.usage.model, finish=resp.finish_reason)
+
+            # Persist progress after every model call. A failed save is logged but not fatal.
+            try:
+                self.ckpt_store.save(Checkpoint(
+                    task_id=task_id, status=sm.status.value,
+                    completed_steps=steps, tool_log=log.to_list(),
+                ))
+            except CheckpointError as exc:
+                self.events.record("checkpoint_save_failed", reason=str(exc))
 
             if resp.tool_calls:
                 messages.append({"role": "assistant",
@@ -300,6 +350,7 @@ class Framework:
             self.events.record("verification", passed=report.all_required_passed)
             if report.all_required_passed:
                 sm.transition(TaskStatus.COMPLETED, "all required criteria passed")
+                self.ckpt_store.delete(task_id)
                 return self._result(sm, report, acct, log, steps, "verified complete")
             fails = [f"{r.id}={r.status.value} ({r.evidence})"
                      for r in report.results if r.required and r.status.value != "pass"]
@@ -309,6 +360,7 @@ class Framework:
 
         if sm.status not in TERMINAL_STATES:
             sm.transition(TaskStatus.FAILED, "max steps reached")
+        self.ckpt_store.delete(task_id)
         return self._result(sm, report, acct, log, steps, "max steps reached without verified completion")
 
     def _run_tool(self, action: Action, log: ToolLog) -> ToolResult:

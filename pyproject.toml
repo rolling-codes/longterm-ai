@@ -19,3 +19,6 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 longterm_ai = ["handoff/summarizer_prompt.md"]
+
+[project.scripts]
+longterm = "longterm_ai.cli:main"

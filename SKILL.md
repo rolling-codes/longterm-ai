@@ -65,7 +65,10 @@ Stdlib only. No runtime dependencies. Runs fully with the built-in `FakeModel`
 | `policy.py` | Fail-closed authorization, risk classes, approval binding |
 | `telemetry.py` | Honest usage accounting, cost, events |
 | `verification.py` | Deterministic verified completion |
-| `runtime.py` | State machine, run loop, checkpoints, side-effect reconciliation |
+| `runtime.py` | State machine, run loop, checkpoints + resume, side-effect reconciliation |
+| `sqlite_store.py` | SQLite checkpoint storage (atomic, concurrent-safe, stdlib only) |
+| `providers/` | OpenAI, Anthropic, Gemini adapters satisfying `ModelAdapter` |
+| `cli.py` | CLI entry point (`longterm verify`, `rebuild`, `run`) |
 | `handoff/` | Provider-neutral durable handoff (spec 22–25) |
 | `contracts.py` | Shared typed dataclasses + protocols |
 | `adapters.py` | `FakeModel` + `EchoModel` for tests without a provider |
@@ -106,6 +109,6 @@ print(result.status, result.verified_complete, result.usage)
 
 ```bash
 python -m pip install -e .          # Python 3.12+, no runtime deps
-python -m unittest discover tests   # 77 tests, all stdlib
+python -m unittest discover tests   # 115 tests, all stdlib
 python examples/demo.py             # end-to-end verified run
 ```
