@@ -22,7 +22,7 @@ from .contracts import (
 from .policy import Approval, ApprovalStore, RuleBasedPolicy, action_digest, fail_closed
 from .runtime import (
     Checkpoint, CheckpointStore, Framework, RunResult, TaskStateMachine, ToolLog, ToolLogEntry,
-    changed_state_mismatches, reconcile_changed_state, should_retry,
+    changed_state_mismatches, claim_accuracy, reconcile_changed_state, should_retry,
 )
 from .sqlite_store import SqliteCheckpointStore
 from .telemetry import EventLog, RoughTokenEstimator, UsageAccountant, rough_tokens
@@ -39,7 +39,7 @@ __all__ = [
     "DeterministicVerifier", "VerificationReport", "CriterionResult", "CriterionStatus",
     "FakeModel", "EchoModel", "ScriptedTurn",
     "TaskStateMachine", "TaskStatus", "Checkpoint", "CheckpointStore", "SqliteCheckpointStore",
-    "ToolLog", "ToolLogEntry", "reconcile_changed_state", "changed_state_mismatches", "should_retry",
+    "ToolLog", "ToolLogEntry", "reconcile_changed_state", "changed_state_mismatches", "claim_accuracy", "should_retry",
     "UsageAccountant", "UsageRecord", "EventLog", "RoughTokenEstimator", "rough_tokens",
     "Action", "AuthorizationDecision", "Decision", "RiskClass", "OutcomeStatus",
     "ModelAdapter", "ModelRequest", "ModelResponse", "ToolCall", "ToolContext",

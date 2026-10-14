@@ -43,7 +43,7 @@ that runs out-of-the-box with built-in fake adapters or connects to real provide
 
 ```bash
 python -m pip install -e .          # Python 3.12+, stdlib only for core
-python -m unittest discover tests   # 115 tests, all stdlib
+python -m unittest discover tests   # 118 tests, all stdlib
 ```
 
 ### End-to-End Demo & Benchmarks
@@ -185,7 +185,7 @@ src/longterm_ai/
   adapters.py       Deterministic FakeModel and EchoModel for tests without a provider
   providers/        Real provider adapters (OpenAI, Anthropic Claude, Google Gemini)
   handoff/          Provider-neutral handoff with layer-one verification checks
-tests/              115 stdlib unittest tests (100% green without network or provider keys)
+tests/              118 stdlib unittest tests (100% green without network or provider keys)
 examples/demo.py    End-to-end task execution walkthrough
 benchmarks/         Single-fixture context size comparison (~94.8% reduction)
 docs/decisions/     Architecture Decision Records (0001-scope.md, 0002-phase2.md)
@@ -209,7 +209,7 @@ docs/decisions/     Architecture Decision Records (0001-scope.md, 0002-phase2.md
 | **016** | Strict task state machine validation | `runtime.TaskStateMachine` · `test_runtime` |
 | **019** | Policy errors, timeouts, or invalid formats fail closed (`DENY`) | `policy.fail_closed` · `test_policy` |
 | **021** | Mandatory content sent as plain text; survival verified | `runtime.build_system` · `test_runtime` |
-| **GPT 29.2 / Grok 31.6** | Side-effect truth derived from authoritative log, not model claims | `runtime.reconcile_changed_state` · `test_runtime`, `test_handoff` |
+| **GPT 29.2 / Grok 31.6** | Side-effect truth derived from authoritative log, claim accuracy | `runtime.reconcile_changed_state`, `runtime.claim_accuracy` · `test_runtime`, `test_handoff` |
 
 ---
 

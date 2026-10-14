@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added an optional SQLite-backed checkpoint backend in `longterm_ai.sqlite_store`.
   - Drop-in replacement for `CheckpointStore` using Python's standard library `sqlite3` (zero dependencies).
   - Enables atomic transactions, WAL journal mode for concurrent read safety, and context manager support (`with` statement).
+- **Sub-Agent Claim Accuracy Scoring**:
+  - Added `claim_accuracy(model_claims, reconciled)` to measure accuracy ratio of model side-effect claims vs. authoritative tool execution log (inspired by sub-agent health scoring).
 - **Real Provider Adapters** (`longterm_ai.providers`):
   - Added `OpenAIAdapter` supporting OpenAI Chat Completions API with function calling and reported usage tokens.
   - Added `AnthropicAdapter` supporting Claude Messages API with `tool_use` blocks and stop reason translation.

@@ -136,6 +136,21 @@ def changed_state_mismatches(model_claims: list[str], reconciled: list[str]) -> 
     return {"unbacked_claims": sorted(claims - backed), "unclaimed_in_log": sorted(backed - claims)}
 
 
+def claim_accuracy(model_claims: list[str], reconciled: list[str]) -> float | None:
+    """Calculate accuracy ratio of model side-effect claims vs the authoritative log.
+
+    Inspired by sub-agent health scoring (backed / claimed):
+      accuracy = len(backed_claims) / len(claimed_claims)
+
+    Returns None if the model made no claims. Returns 1.0 if every claimed change
+    was confirmed in the log. Returns < 1.0 if the model over-reported side effects.
+    """
+    if not model_claims:
+        return None
+    claims, backed = set(model_claims), set(reconciled)
+    return len(claims & backed) / len(claims)
+
+
 def should_retry(outcome: OutcomeStatus, idempotent: bool, attempts: int, max_attempts: int) -> bool:
     """Bounded, error-specific retry. Never auto-retry an unknown non-idempotent op."""
     if attempts >= max_attempts:

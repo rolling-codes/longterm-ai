@@ -73,6 +73,21 @@ Stdlib only. No runtime dependencies. Runs fully with the built-in `FakeModel`
 | `contracts.py` | Shared typed dataclasses + protocols |
 | `adapters.py` | `FakeModel` + `EchoModel` for tests without a provider |
 
+## Pre-Build Gate ("Kill Test")
+
+Before initiating an automated multi-step run with `longterm-ai`, ask:
+1. *Does a solution already exist?* Search symbols/tools before writing custom actions.
+2. *Can this be completed deterministically without an LLM loop?* If plain python/shell solves it, do not spin up an agent loop.
+3. *Is the problem concrete and present right now?* Do not implement speculative features.
+4. *Are the acceptance criteria verifiable?* If completion cannot be deterministically verified (`exit_code`, `file_exists`, `schema_valid`), define the missing criteria first.
+
+## Context Discipline & Load Hierarchy
+
+When composing tasks and providing context:
+- Stop loading as soon as context is sufficient (task instructions -> docs -> tests -> relevant source).
+- Never dump raw files into context; let `longterm-ai`'s bounded gateway summarize and store raw outputs as artifacts.
+- Monitor `claim_accuracy(model_claims, reconciled)` to track whether the model accurately reports side effects or over-reports.
+
 ## Minimal usage recipe
 
 ```python
@@ -109,6 +124,6 @@ print(result.status, result.verified_complete, result.usage)
 
 ```bash
 python -m pip install -e .          # Python 3.12+, no runtime deps
-python -m unittest discover tests   # 115 tests, all stdlib
+python -m unittest discover tests   # 118 tests, all stdlib
 python examples/demo.py             # end-to-end verified run
 ```

@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from longterm_ai import (  # noqa: E402
     Checkpoint, CheckpointStore, Criterion, DeterministicVerifier, FakeModel, Framework, OutcomeStatus,
     RiskClass, RuleBasedPolicy, ScriptedTurn, Task, TaskStateMachine, TaskStatus, ToolLog, ToolLogEntry,
-    FunctionTool, ToolDefinition, ToolRegistry, changed_state_mismatches, reconcile_changed_state, should_retry,
+    FunctionTool, ToolDefinition, ToolRegistry, changed_state_mismatches, claim_accuracy, reconcile_changed_state, should_retry,
 )
 from longterm_ai.contracts import ToolCall  # noqa: E402
 from longterm_ai.runtime import build_system, mandatory_present  # noqa: E402
@@ -57,6 +57,19 @@ class Reconciliation(unittest.TestCase):
         reconciled = reconcile_changed_state(ToolLog())   # nothing confirmed
         mism = changed_state_mismatches(["deleted production db"], reconciled)
         self.assertIn("deleted production db", mism["unbacked_claims"])
+
+    def test_claim_accuracy_empty_claims_is_none(self):
+        self.assertIsNone(claim_accuracy([], ["push: repo updated"]))
+
+    def test_claim_accuracy_all_backed_is_one(self):
+        claims = ["push: commit pushed", "write: file written"]
+        self.assertEqual(claim_accuracy(claims, claims), 1.0)
+
+    def test_claim_accuracy_over_reporting(self):
+        # 1 backed out of 2 claimed = 0.5 accuracy (over-reporting detection)
+        claims = ["push: commit pushed", "deploy: staged"]
+        reconciled = ["push: commit pushed"]
+        self.assertEqual(claim_accuracy(claims, reconciled), 0.5)
 
 
 class RetryGuard(unittest.TestCase):
