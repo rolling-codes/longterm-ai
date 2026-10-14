@@ -235,6 +235,55 @@ docs/decisions/     Architecture Decision Records (0001-scope.md, 0002-phase2.md
 
 ---
 
+## Two-Repository Architecture: longterm-ai & AI-Coding-Swiss-Army-Knife
+
+`longterm-ai` and [`AI-Coding-Swiss-Army-Knife`](https://github.com/rolling-codes/AI-Coding-Swiss-Army-Knife) (Dev Workflow Pack) are designed to work together as a two-tier agent system:
+
+| Dimension | [AI-Coding-Swiss-Army-Knife](https://github.com/rolling-codes/AI-Coding-Swiss-Army-Knife) | [longterm-ai](https://github.com/rolling-codes/longterm-ai) |
+|---|---|---|
+| **Architectural Layer** | **Methodology, Skills & Reasoning** | **Execution, Policy & Runtime Enforcement** |
+| **Form Factor** | 20 prompt-level skills + hooks + sub-agent roles | Standard library Python framework + CLI |
+| **Primary Job** | Decides *what* to do, *when* to stop, and routes tasks (`kill-test`, `dev-workflow`, `code-review`, etc.) | Enforces hard constraints in code so the model *cannot* flood context or hallucinate completion |
+| **Context Strategy** | Lazy loading hierarchy (`references/context-management.md`), keep/drop classification | Bounded tool envelopes, artifact store, output size limits, and deduplication |
+| **Verification Gate** | Prescribes acceptance criteria and TDD flow | Executes deterministic verifiers (`exit_code`, `file_exists`, `schema_valid`) |
+| **Durability** | Session memory digests (`.claude/memory.json`, ledger) | SQLite WAL checkpoints, state machine, and provider-neutral handoff records |
+
+### Two-Repository Workflow
+
+```
+[ Developer Prompt ]
+         │
+         ▼
+[ AI-Coding-Swiss-Army-Knife ]
+  ├── kill-test          → 5-question pre-build gate (kill bad builds before code is written)
+  ├── dev-workflow       → Task planning, scope definition & model routing
+  └── context-management → Lazy-load hierarchy (task → docs → tests → source)
+         │
+         ▼ (Dispatches multi-step agentic execution)
+[ longterm-ai Framework ]
+  ├── ToolGateway        → Limits raw output bytes, summarizes, archives artifacts
+  ├── RuleBasedPolicy    → Fail-closed risk checks before actions execute
+  ├── CheckpointStore    → Atomic SQLite checkpoints per step (resume=True on disconnect)
+  └── Verifier           → Deterministic checks; forbids completion until criteria pass
+         │
+         ▼
+[ Completion & Handoff ]
+  ├── claim_accuracy()   → Compares model claims vs. authoritative tool log
+  └── HandoffRecord      → Clean plain-text handoff for subsequent turns / model switches
+```
+
+---
+
+## Provenance & Credits
+
+- **Core Design & Review Overlay:** Built from the `long_term_ai_framework` design specification and multi-provider review overlay (Claude, GPT-6, Grok).
+- **Workflow Methodology & Scoring:** Integrates foundational principles from [**AI-Coding-Swiss-Army-Knife**](https://github.com/rolling-codes/AI-Coding-Swiss-Army-Knife) by RollingCodes:
+  - Pre-build gate (`kill-test`) preventing unnecessary agent runs
+  - Tiered information hierarchy & context discipline (`context-management`)
+  - Sub-agent claim accuracy scoring (`agent-health.md` $\to$ `runtime.claim_accuracy`)
+
+---
+
 ## License
 
 MIT.

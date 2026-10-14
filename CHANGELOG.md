@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `longterm rebuild <task_json> <transcript_json> <record_json> <state_dir> --format neutral|anthropic|openai`: Rebuild context across models.
   - `longterm run <task_json> [--state-dir DIR] [--resume]`: Offline task execution using `FakeModel` for CI/scripting.
   - Registered console script `longterm` in `pyproject.toml`.
+- **Two-Repository Ecosystem & Provenance**:
+  - Documented two-tier architecture with [`AI-Coding-Swiss-Army-Knife`](https://github.com/rolling-codes/AI-Coding-Swiss-Army-Knife) (skills/methodology layer vs. runtime/enforcement layer).
+  - Explicitly credited `AI-Coding-Swiss-Army-Knife` for kill-test gates, context load hierarchy, and claim accuracy scoring in README.
 - **Architecture Decision Record**:
   - Documented design rationale in `docs/decisions/0002-phase2.md`.
 - **Test Suite Expansion**:

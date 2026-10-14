@@ -56,6 +56,16 @@ Stdlib only. No runtime dependencies. Runs fully with the built-in `FakeModel`
 - Simple scripts that call a model once — direct API call is enough.
 - Tasks where you only need one of the five guarantees and a lighter approach
   (e.g., just `@lru_cache`) covers it.
+- Pure workflow routing, prompting heuristics, or git commit drafting without
+  multi-step tool execution — use [`AI-Coding-Swiss-Army-Knife`](https://github.com/rolling-codes/AI-Coding-Swiss-Army-Knife)
+  skills directly (`kill-test`, `commit-message`, `pr-description`, `code-review`).
+  `longterm-ai` is the underlying runtime that executes multi-step tool calls
+  under bounded envelopes and deterministic verification.
+
+## Two-Repository Workflow Relationship
+
+- **AI-Coding-Swiss-Army-Knife:** The methodology layer (prompt-level gates, kill-test decisions, context load hierarchies, review guidelines).
+- **longterm-ai:** The runtime enforcement layer (hard constraints in Python code: bounded tool envelopes, fail-closed policy, honest usage, deterministic verification, SQLite checkpoints).
 
 ## Module map
 
