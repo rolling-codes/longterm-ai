@@ -55,6 +55,7 @@ def agent_a(state: Path) -> tuple[object, ToolLog]:
     (state / "client").mkdir(parents=True, exist_ok=True)
 
     def apply_patch(args: dict, ctx) -> str:
+        """Write the sample retry patch under the demo state directory and report it."""
         target = state / args["path"]
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text("def fetch(): ...  # retry loop added\n", encoding="utf-8")
@@ -84,6 +85,7 @@ def agent_a(state: Path) -> tuple[object, ToolLog]:
 
 
 def review(record: HandoffRecord, task: dict, log: ToolLog, state: Path) -> bool:
+    """Print handoff checks and return whether layer one passes with no unbacked claims."""
     reconciled = reconcile_changed_state(log)
     acc = claim_accuracy(record.changed_state, reconciled)
     mism = changed_state_mismatches(record.changed_state, reconciled)
@@ -98,6 +100,7 @@ def review(record: HandoffRecord, task: dict, log: ToolLog, state: Path) -> bool
 
 
 def main() -> None:
+    """Run the offline handoff demo and exit with failure if any check fails."""
     state = Path(tempfile.mkdtemp(prefix="lt_multiagent_"))
     checks: list[bool] = []
 

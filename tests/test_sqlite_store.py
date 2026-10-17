@@ -27,6 +27,7 @@ def _cp(task_id: str = "t1", status: str = "running", steps: int = 3) -> Checkpo
 class SqliteStoreTests(unittest.TestCase):
 
     def test_save_and_load_roundtrip(self):
+        """Saving and loading preserves checkpoint identity, progress, and schema version."""
         with tempfile.TemporaryDirectory() as tmp:
             with _store(tmp) as store:
                 cp = _cp()
@@ -82,6 +83,7 @@ class SqliteStoreTests(unittest.TestCase):
                     store.load("bad_ver")
 
     def test_save_overwrites(self):
+        """Saving the same task again replaces its status and completed step count."""
         with tempfile.TemporaryDirectory() as tmp:
             with _store(tmp) as store:
                 store.save(_cp("t1", "running", 1))
@@ -92,6 +94,7 @@ class SqliteStoreTests(unittest.TestCase):
                 self.assertEqual(loaded.completed_steps, 5)
 
     def test_tool_log_survives_roundtrip(self):
+        """Checkpoint storage preserves tool-log entries through a save and load."""
         from longterm_ai import OutcomeStatus, RiskClass, ToolLog, ToolLogEntry
         with tempfile.TemporaryDirectory() as tmp:
             with _store(tmp) as store:

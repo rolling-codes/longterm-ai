@@ -253,6 +253,7 @@ def _make_indexer(store: Any) -> Callable[[str, str, str], None]:
     from .retrieval import Document  # local import avoids a module-load cycle
 
     def index(ref: str, full_text: str, tool_name: str) -> None:
+        """Index the full artifact text by reference with the tool name as its source."""
         store.index(Document(id=ref, text=full_text, source=tool_name))
 
     return index
@@ -273,6 +274,10 @@ class Framework:
         policy_timeout_s: float | None = None,
         store: Any | None = None,
     ) -> None:
+        """Configure execution, policy, verification, and checkpoint storage.
+
+        When store is supplied, index archived tool output there for retrieval.
+        """
         self.model = model
         self.registry = tools
         self.policy = policy

@@ -45,15 +45,18 @@ class BM25Index:
     """Incremental Okapi BM25 over tokenized documents. Pure stdlib."""
 
     def __init__(self) -> None:
+        """Create an empty index with per-document lengths and term frequencies."""
         self._postings: dict[str, dict[str, int]] = defaultdict(dict)  # term -> {doc_id: tf}
         self._doc_len: dict[str, int] = {}
         self._total_len = 0
 
     @property
     def n_docs(self) -> int:
+        """Return the number of indexed documents, including empty documents."""
         return len(self._doc_len)
 
     def add(self, doc_id: str, tokens: list[str]) -> None:
+        """Index tokens for a document, replacing any previous contribution for its ID."""
         if doc_id in self._doc_len:            # re-index: remove the old contribution first
             self._remove(doc_id)
         tf: dict[str, int] = defaultdict(int)
@@ -65,6 +68,7 @@ class BM25Index:
         self._total_len += len(tokens)
 
     def _remove(self, doc_id: str) -> None:
+        """Remove a document from postings and length totals, if present."""
         for term in list(self._postings):
             if doc_id in self._postings[term]:
                 del self._postings[term][doc_id]
@@ -96,12 +100,14 @@ class MemoryStore:
     """In-memory evidence store: a BM25 index plus the documents themselves."""
 
     def __init__(self) -> None:
+        """Create an empty evidence store with stable insertion order for score ties."""
         self._index = BM25Index()
         self._docs: dict[str, Document] = {}
         self._order: dict[str, int] = {}       # insertion order, for stable tie-breaking
         self._seq = 0
 
     def index(self, doc: Document) -> None:
+        """Store and index source and text, preserving insertion order when replacing an ID."""
         if doc.id not in self._docs:
             self._order[doc.id] = self._seq
             self._seq += 1
@@ -122,9 +128,15 @@ class Retriever:
     """Thin query surface over a :class:`MemoryStore`, with an optional token budget."""
 
     def __init__(self, store: MemoryStore) -> None:
+        """Use the given evidence store for relevance-ranked retrieval."""
         self.store = store
 
     def retrieve(self, query: str, k: int = 5, token_budget: int | None = None) -> list[Document]:
+        """Return up to k matches, stopping before the first document that exceeds the budget.
+
+        The optional budget counts rough tokens in document text only; documents
+        are kept whole and in relevance order.
+        """
         hits = [doc for doc, _ in self.store.search(query, k)]
         if token_budget is None:
             return hits
@@ -156,6 +168,7 @@ def make_retrieve_tool(store: MemoryStore, *, budget: int = 1000, k: int = 5) ->
     retriever = Retriever(store)
 
     def _run(args: dict[str, Any], ctx: ToolContext) -> str:
+        """Assemble evidence for the query using the tool's configured budget and hit limit."""
         return assemble_context(retriever, str(args["query"]), budget=budget, k=k)
 
     return FunctionTool(

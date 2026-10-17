@@ -90,6 +90,7 @@ class CLIReviewTests(unittest.TestCase):
 
     def test_review_unsafe_when_claim_unbacked(self):
         # record.json claims a side effect; with no tool log it is unbacked -> UNSAFE.
+        """A side-effect claim without an authoritative log produces an UNSAFE verdict."""
         p = run_cli("review", "task.json", "record.json", "state")
         self.assertEqual(p.returncode, 1)
         self.assertIn("UNSAFE", p.stdout)
@@ -97,6 +98,7 @@ class CLIReviewTests(unittest.TestCase):
         self.assertIn("claim accuracy   : 0.000", p.stdout)
 
     def test_review_safe_when_claim_backed_by_log(self):
+        """A matching tool log clears the handoff and reports full claim accuracy."""
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             rec = json.loads((EX / "record.json").read_text(encoding="utf-8"))
@@ -120,6 +122,7 @@ class CLIReviewTests(unittest.TestCase):
             self.assertEqual(data["unbacked_claims"], [])
 
     def test_review_json_has_expected_keys(self):
+        """JSON review output includes verification and claim reconciliation fields."""
         p = run_cli("review", "task.json", "record.json", "state", "--json")
         data = json.loads(p.stdout)
         for key in ("layer_one_passed", "claim_accuracy", "unbacked_claims",
@@ -128,6 +131,7 @@ class CLIReviewTests(unittest.TestCase):
 
     def test_run_then_review_pipeline(self):
         # run writes <state>/<task_id>.tool_log.json; review reads it by task-id.
+        """A run persists a tool log that review accepts for a record with no side-effect claims."""
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             task_file = tmp_path / "t.json"
@@ -155,12 +159,14 @@ class CLIReviewTests(unittest.TestCase):
 
     # --- operational errors must exit 2 (fail closed), never crash or look like a verdict ---
     def test_review_missing_task_file_exits_2(self):
+        """A missing task stops review with operational exit 2 and no traceback."""
         p = run_cli("review", "does_not_exist.json", "record.json", "state")
         self.assertEqual(p.returncode, 2, p.stderr)
         self.assertIn("could not run", p.stderr)
         self.assertNotIn("Traceback", p.stderr)
 
     def test_review_malformed_tool_log_exits_2(self):
+        """Invalid tool-log JSON stops review with operational exit 2 and no traceback."""
         with tempfile.TemporaryDirectory() as tmp:
             bad = Path(tmp) / "bad.json"
             bad.write_text("{not json", encoding="utf-8")
@@ -169,6 +175,7 @@ class CLIReviewTests(unittest.TestCase):
             self.assertNotIn("Traceback", p.stderr)
 
     def test_review_tool_log_not_a_list_exits_2(self):
+        """Review rejects a tool-log object instead of treating it as a list of entries."""
         with tempfile.TemporaryDirectory() as tmp:
             notlist = Path(tmp) / "obj.json"
             notlist.write_text('{"entries": []}', encoding="utf-8")
@@ -177,6 +184,7 @@ class CLIReviewTests(unittest.TestCase):
             self.assertIn("list", p.stderr)
 
     def test_review_unsupported_record_exits_2(self):
+        """An unsupported record schema produces operational exit 2 without a traceback."""
         with tempfile.TemporaryDirectory() as tmp:
             rec = json.loads((EX / "record.json").read_text(encoding="utf-8"))
             rec["version"] = "999"          # unknown schema version -> UnsupportedRecord
@@ -190,12 +198,14 @@ class CLIReviewTests(unittest.TestCase):
 class CLIOperationalErrorTests(unittest.TestCase):
 
     def test_verify_missing_task_file_exits_2(self):
+        """Verification reports a missing task as operational exit 2 without a traceback."""
         p = run_cli("verify", "nope.json", "record.json", "state")
         self.assertEqual(p.returncode, 2, p.stderr)
         self.assertIn("could not run", p.stderr)
         self.assertNotIn("Traceback", p.stderr)
 
     def test_run_malformed_criteria_exits_2(self):
+        """A criterion missing its kind produces operational exit 2 without a traceback."""
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             task_file = tmp_path / "t.json"

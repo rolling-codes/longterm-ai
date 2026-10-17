@@ -155,6 +155,11 @@ class ToolGateway:
         policy_timeout_s: float | None = None,
         on_artifact: Callable[[str, str, str], None] | None = None,
     ) -> None:
+        """Configure policy enforcement, output storage, and optional callbacks.
+
+        After storing a truncated result, call on_artifact with its reference,
+        full text, and tool name.
+        """
         self.registry = registry
         self.policy = policy
         self.artifact_store = artifact_store
@@ -166,6 +171,7 @@ class ToolGateway:
         self.on_artifact = on_artifact
 
     def execute(self, action: Action, ctx: ToolContext) -> ToolResult:
+        """Authorize and validate an action, execute it, and return a bounded result."""
         prov = {"tool": action.name, "op_id": action.op_id}
         tool = self.registry.get(action.name)
         if tool is None:

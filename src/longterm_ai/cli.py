@@ -77,6 +77,7 @@ def _load_record(path_str: str):
 
 
 def _cmd_verify(args: argparse.Namespace) -> int:
+    """Print layer-one results; return 0 for pass, 1 for failure, or 2 for input errors."""
     from .handoff import layer_one
 
     try:
@@ -96,6 +97,7 @@ def _cmd_verify(args: argparse.Namespace) -> int:
 
 
 def _cmd_rebuild(args: argparse.Namespace) -> int:
+    """Print rebuilt context; return 1 for refusal or 2 for malformed input."""
     from .handoff import NotAtCleanBoundary, layer_one, rebuild, to_anthropic, to_openai_chat
 
     try:
@@ -137,6 +139,7 @@ def _cmd_rebuild(args: argparse.Namespace) -> int:
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
+    """Run a task with FakeModel, persist its tool log, and print the result as JSON."""
     from .adapters import FakeModel
     from .contracts import Criterion, Task
     from .policy import RuleBasedPolicy
@@ -223,6 +226,7 @@ def _resolve_tool_log(args: argparse.Namespace, state_dir: Path) -> tuple[list, 
 
 
 def _cmd_review(args: argparse.Namespace) -> int:
+    """Review handoff claims; return 0 for SAFE, 1 for UNSAFE, or 2 for input errors."""
     from .handoff import layer_one
     from .runtime import ToolLog, changed_state_mismatches, claim_accuracy, reconcile_changed_state
 

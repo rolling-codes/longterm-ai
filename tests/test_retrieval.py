@@ -19,17 +19,21 @@ from longterm_ai.retrieval import (  # noqa: E402
 
 class Tokenize(unittest.TestCase):
     def test_lowercases_and_splits_punctuation(self):
+        """Tokenization lowercases words, splits punctuation, and preserves underscores."""
         self.assertEqual(_tokenize("Build FAILED: module_7.py!"), ["build", "failed", "module_7", "py"])
 
     def test_empty(self):
+        """Whitespace and punctuation alone produce no tokens."""
         self.assertEqual(_tokenize("  ... "), [])
 
 
 class BM25(unittest.TestCase):
     def test_empty_index_scores_nothing(self):
+        """An empty index returns no scores for any query."""
         self.assertEqual(BM25Index().score(["anything"]), {})
 
     def test_ranks_on_topic_above_off_topic(self):
+        """Search returns positively scored matching documents and excludes unrelated text."""
         store = MemoryStore()
         store.index(Document("a", "the database migration failed on the users table"))
         store.index(Document("b", "the cat sat quietly on a warm windowsill all day"))
@@ -41,6 +45,7 @@ class BM25(unittest.TestCase):
         self.assertGreater(hits[0][1], 0.0)
 
     def test_reindex_replaces_not_duplicates(self):
+        """Reindexing an ID removes old terms and keeps a single document."""
         store = MemoryStore()
         store.index(Document("a", "alpha beta"))
         store.index(Document("a", "gamma delta"))         # same id, new text
@@ -51,6 +56,7 @@ class BM25(unittest.TestCase):
 
 class RetrieverBudget(unittest.TestCase):
     def setUp(self):
+        """Index three matching documents with equal text lengths for budget checks."""
         self.store = MemoryStore()
         # Three ~equally relevant docs; each ~10 rough tokens (40 chars).
         for i in "abc":
@@ -58,26 +64,32 @@ class RetrieverBudget(unittest.TestCase):
         self.r = Retriever(self.store)
 
     def test_k_limits_count(self):
+        """The hit limit caps the number of retrieved documents."""
         self.assertEqual(len(self.r.retrieve("keyword", k=2)), 2)
 
     def test_empty_query_returns_nothing(self):
+        """A query with no matching terms returns no documents."""
         self.assertEqual(self.r.retrieve("nomatch", k=5), [])
 
     def test_token_budget_drops_tail(self):
         # Each doc is 39 chars -> rough_tokens ~= 9. Budget 20 fits only two.
+        """Retrieval keeps only the leading whole documents that fit the token budget."""
         kept = self.r.retrieve("keyword", k=3, token_budget=20)
         self.assertEqual(len(kept), 2)
 
     def test_no_budget_returns_all_hits(self):
+        """Retrieval without a token budget keeps all matches within the hit limit."""
         self.assertEqual(len(self.r.retrieve("keyword", k=3)), 3)
 
 
 class AssembleContext(unittest.TestCase):
     def test_empty_on_no_hits(self):
+        """Context assembly returns an empty string when no evidence matches."""
         r = Retriever(MemoryStore())
         self.assertEqual(assemble_context(r, "anything", budget=100), "")
 
     def test_includes_provenance_header(self):
+        """Assembled context includes both the evidence source and document text."""
         store = MemoryStore()
         store.index(Document("ref1", "disk usage at 92 percent", source="shell"))
         out = assemble_context(Retriever(store), "disk usage", budget=100)
@@ -87,6 +99,7 @@ class AssembleContext(unittest.TestCase):
 
 class RetrieveToolThroughGateway(unittest.TestCase):
     def test_tool_is_bounded_and_policy_gated(self):
+        """The gateway permits the read-only retrieve tool and returns matching evidence."""
         tmp = tempfile.mkdtemp()
         store = MemoryStore()
         store.index(Document("ref1", "the error was a null pointer in the parser", source="shell"))
@@ -100,6 +113,7 @@ class RetrieveToolThroughGateway(unittest.TestCase):
         self.assertIn("null pointer", r.summary + str(r.data))
 
     def test_cannot_run_when_denied(self):
+        """The gateway denies retrieval when its tool definition is prohibited."""
         tmp = tempfile.mkdtemp()
         reg = ToolRegistry()
         # Force the retrieve tool to a prohibited class via a hand-built definition.
@@ -118,6 +132,7 @@ class FrameworkIntegration(unittest.TestCase):
     """store= indexes truncated artifacts; store=None leaves behavior unchanged."""
 
     def _run(self, *, with_store):
+        """Run a task that archives oversized log output, optionally indexing it for retrieval."""
         state = Path(tempfile.mkdtemp(prefix="lt_retr_"))
         (state / "build.log").write_text("BUILD OK\n")
         big = "\n".join(f"line {i}: null pointer in parser module_{i}" for i in range(200))
@@ -144,6 +159,7 @@ class FrameworkIntegration(unittest.TestCase):
         return result, store
 
     def test_store_indexes_truncated_artifact(self):
+        """A configured store makes the full archived tool output retrievable."""
         result, store = self._run(with_store=True)
         self.assertTrue(result.verified_complete)
         assert store is not None
@@ -153,6 +169,7 @@ class FrameworkIntegration(unittest.TestCase):
         self.assertIn("null pointer", hits[0].text)
 
     def test_none_store_still_completes(self):
+        """The task still completes when no retrieval store is configured."""
         result, store = self._run(with_store=False)
         self.assertTrue(result.verified_complete)
         self.assertIsNone(store)
