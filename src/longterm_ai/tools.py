@@ -153,15 +153,25 @@ class ToolGateway:
         events: EventLog | None = None,
         approval_cb: Callable[[Action, Any], bool] | None = None,
         policy_timeout_s: float | None = None,
+        on_artifact: Callable[[str, str, str], None] | None = None,
     ) -> None:
+        """Configure policy enforcement, output storage, and optional callbacks.
+
+        After storing a truncated result, call on_artifact with its reference,
+        full text, and tool name.
+        """
         self.registry = registry
         self.policy = policy
         self.artifact_store = artifact_store
         self.events = events or EventLog()
         self.approval_cb = approval_cb
         self.policy_timeout_s = policy_timeout_s
+        # Called with (artifact_ref, full_text, tool_name) when an artifact is stored.
+        # Lets a retrieval store index evidence without tools.py importing retrieval.
+        self.on_artifact = on_artifact
 
     def execute(self, action: Action, ctx: ToolContext) -> ToolResult:
+        """Authorize and validate an action, execute it, and return a bounded result."""
         prov = {"tool": action.name, "op_id": action.op_id}
         tool = self.registry.get(action.name)
         if tool is None:
@@ -201,6 +211,8 @@ class ToolGateway:
         artifact_ref = None
         if reduced.truncated and self.artifact_store is not None and reduced.full_text is not None:
             artifact_ref = self.artifact_store.put(action.op_id or action.name, reduced.full_text)
+            if self.on_artifact is not None:
+                self.on_artifact(artifact_ref, reduced.full_text, action.name)
 
         self.events.record("tool_result", tool=action.name, status="success",
                            truncated=reduced.truncated, omitted_count=reduced.omitted_count)

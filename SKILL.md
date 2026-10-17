@@ -34,7 +34,12 @@ enforces five hard guarantees in code — not prompts:
    is not proof.
 5. **Durable handoff** — provider-neutral checkpoint + side-effect
    reconciliation; what changed is derived from the authoritative tool log, not
-   the model's claim.
+   the model's claim. A `longterm review` command gates a handoff before a
+   receiving agent acts on it (layer-one check + claim-accuracy scoring).
+
+On top of the five guarantees: a **retrieval engine** (BM25, stdlib) indexes the
+full tool outputs the bounded gateway stores as artifacts, so a later turn pulls
+back only the relevant slice under a token budget instead of re-dumping raw output.
 
 Stdlib only. No runtime dependencies. Runs fully with the built-in `FakeModel`
 — no API key or network needed.
@@ -77,8 +82,9 @@ Stdlib only. No runtime dependencies. Runs fully with the built-in `FakeModel`
 | `verification.py` | Deterministic verified completion |
 | `runtime.py` | State machine, run loop, checkpoints + resume, side-effect reconciliation |
 | `sqlite_store.py` | SQLite checkpoint storage (atomic, concurrent-safe, stdlib only) |
+| `retrieval.py` | Retrieval-first context assembly — BM25 index, token-budgeted retriever, `retrieve` tool |
 | `providers/` | OpenAI, Anthropic, Gemini adapters satisfying `ModelAdapter` |
-| `cli.py` | CLI entry point (`longterm verify`, `rebuild`, `run`) |
+| `cli.py` | CLI entry point (`longterm verify`, `rebuild`, `run`, `review`) |
 | `handoff/` | Provider-neutral durable handoff (spec 22–25) |
 | `contracts.py` | Shared typed dataclasses + protocols |
 | `adapters.py` | `FakeModel` + `EchoModel` for tests without a provider |
@@ -133,7 +139,8 @@ print(result.status, result.verified_complete, result.usage)
 ## Install
 
 ```bash
-python -m pip install -e .          # Python 3.12+, no runtime deps
-python -m unittest discover tests   # 118 tests, all stdlib
-python examples/demo.py             # end-to-end verified run
+python -m pip install -e .                  # Python 3.12+, no runtime deps
+python -m unittest discover tests           # 137 tests, all stdlib
+python examples/demo.py                      # end-to-end verified run
+python examples/multi_agent_handoff.py       # Agent A -> review -> Agent B (provider-agnostic)
 ```

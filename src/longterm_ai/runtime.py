@@ -248,6 +248,17 @@ def mandatory_present(system: str, constraints: list[str]) -> list[str]:
     return [c for c in constraints if c not in system]
 
 
+def _make_indexer(store: Any) -> Callable[[str, str, str], None]:
+    """Build the gateway's on_artifact callback that indexes evidence into *store*."""
+    from .retrieval import Document  # local import avoids a module-load cycle
+
+    def index(ref: str, full_text: str, tool_name: str) -> None:
+        """Index the full artifact text by reference with the tool name as its source."""
+        store.index(Document(id=ref, text=full_text, source=tool_name))
+
+    return index
+
+
 class Framework:
     def __init__(
         self,
@@ -261,7 +272,12 @@ class Framework:
         approval_cb: Callable[[Action, Any], bool] | None = None,
         max_tool_attempts: int = 2,
         policy_timeout_s: float | None = None,
+        store: Any | None = None,
     ) -> None:
+        """Configure execution, policy, verification, and checkpoint storage.
+
+        When store is supplied, index archived tool output there for retrieval.
+        """
         self.model = model
         self.registry = tools
         self.policy = policy
@@ -269,9 +285,15 @@ class Framework:
         self.state_dir = Path(state_dir)
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.events = events or EventLog()
+        # Optional retrieval store: when set, truncated tool output is indexed as it is
+        # written to the artifact store, so a `retrieve` tool can pull it back later.
+        # Default None keeps the run loop's behavior unchanged.
+        self.store = store
+        on_artifact = _make_indexer(store) if store is not None else None
         self.gateway = ToolGateway(
             tools, policy, artifact_store=ArtifactStore(self.state_dir),
             events=self.events, approval_cb=approval_cb, policy_timeout_s=policy_timeout_s,
+            on_artifact=on_artifact,
         )
         self.estimator = RoughTokenEstimator()
         self.max_tool_attempts = max_tool_attempts

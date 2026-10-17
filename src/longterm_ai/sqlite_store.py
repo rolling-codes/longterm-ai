@@ -13,6 +13,7 @@ import json
 import sqlite3
 import time
 from pathlib import Path
+from typing import Any
 
 from .errors import UnsupportedSchemaVersion
 from .runtime import CHECKPOINT_SCHEMA_VERSION, Checkpoint

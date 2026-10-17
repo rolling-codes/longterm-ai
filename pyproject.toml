@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "longterm-ai"
-version = "0.2.0"
+version = "0.4.1"
 description = "Model-independent framework for reliable, resource-aware, long-running AI work."
 readme = "README.md"
 requires-python = ">=3.12"
