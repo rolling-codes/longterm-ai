@@ -27,9 +27,10 @@ from .runtime import (
 from .sqlite_store import SqliteCheckpointStore
 from .telemetry import EventLog, RoughTokenEstimator, UsageAccountant, rough_tokens
 from .tools import ArtifactStore, FunctionTool, ToolGateway, ToolRegistry, generic_reducer, shell_reducer
+from .retrieval import BM25Index, Document, MemoryStore, Retriever, assemble_context, make_retrieve_tool
 from .verification import DeterministicVerifier
 
-__version__ = "0.2.0"
+__version__ = "0.4.1"
 
 __all__ = [
     "Framework", "RunResult", "Task", "Criterion",
@@ -41,6 +42,7 @@ __all__ = [
     "TaskStateMachine", "TaskStatus", "Checkpoint", "CheckpointStore", "SqliteCheckpointStore",
     "ToolLog", "ToolLogEntry", "reconcile_changed_state", "changed_state_mismatches", "claim_accuracy", "should_retry",
     "UsageAccountant", "UsageRecord", "EventLog", "RoughTokenEstimator", "rough_tokens",
+    "BM25Index", "Document", "MemoryStore", "Retriever", "assemble_context", "make_retrieve_tool",
     "Action", "AuthorizationDecision", "Decision", "RiskClass", "OutcomeStatus",
     "ModelAdapter", "ModelRequest", "ModelResponse", "ToolCall", "ToolContext",
     "ToolDefinition", "ToolResult", "ToolStatus", "Tool", "PolicyEngine", "TokenEstimator", "Verifier",

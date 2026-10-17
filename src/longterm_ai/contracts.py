@@ -229,6 +229,12 @@ class Verifier(Protocol):
     def evaluate(self, task: "Task", extra: dict[str, Any] | None = None) -> VerificationReport: ...
 
 
+@runtime_checkable
+class Retriever(Protocol):
+    # Returns a list of evidence documents (``retrieval.Document``), most relevant first.
+    def retrieve(self, query: str, k: int = 5) -> list[Any]: ...
+
+
 @dataclass
 class ToolContext:
     task_id: str

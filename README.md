@@ -164,8 +164,30 @@ longterm verify task.json record.json ./state_dir --max-tokens 1500
 longterm rebuild task.json transcript.json record.json ./state_dir --format anthropic
 
 # 3. Execute a task using FakeModel for CI/testing without credentials
-longterm run task.json --state-dir .longterm_state --resume
+#    (also writes <state_dir>/<task_id>.tool_log.json for review)
+longterm run task.json --state-dir .longterm_state --task-id t --resume
+
+# 4. Multi-agent handoff review: is a prior agent's handoff safe to act on?
+#    Runs layer one AND scores the record's side-effect claims against the tool log.
+longterm review task.json record.json .longterm_state --task-id t
+longterm review task.json record.json .longterm_state --task-id t --json
 ```
+
+### Multi-agent review
+
+`review` is the gate a receiving agent runs before acting on a prior agent's handoff. It
+combines the deterministic layer-one check with claim reconciliation against the
+authoritative tool log (written by `run`), and reports:
+
+- **layer one** — PASSED/FAILED (constraints intact, pointers resolve, within budget)
+- **claim accuracy** — fraction of the record's `changed_state` claims the log confirms
+  (`n/a` when the record claims nothing — unknown is never reported as `0`)
+- **unbacked claims** — side effects the model claimed that the log does **not** confirm;
+  these must not be treated as done
+- **verdict** — SAFE only when layer one passes **and** no claim is unbacked
+
+**Exit code:** `0` when SAFE, `1` otherwise — so it gates scripts and CI. With no tool
+log available, every side-effect claim is treated as unbacked (the conservative default).
 
 ---
 
@@ -181,7 +203,7 @@ src/longterm_ai/
   verification.py   Deterministic verifier (exit code, file existence, JSON schema)
   runtime.py        Task state machine, run loop, checkpoints + resume, side-effect reconciliation
   sqlite_store.py   SQLite checkpoint store (atomic transactions, WAL mode, stdlib only)
-  cli.py            CLI interface for verify, rebuild, and run
+  cli.py            CLI interface for verify, rebuild, run, and review
   adapters.py       Deterministic FakeModel and EchoModel for tests without a provider
   providers/        Real provider adapters (OpenAI, Anthropic Claude, Google Gemini)
   handoff/          Provider-neutral handoff with layer-one verification checks
@@ -213,9 +235,38 @@ docs/decisions/     Architecture Decision Records (0001-scope.md, 0002-phase2.md
 
 ---
 
+## Retrieval (retrieval-first context assembly)
+
+Tool output is bounded to a summary for the model while the full text is kept as a
+retrievable artifact. The retrieval engine indexes that evidence (BM25, stdlib only) so a
+later turn pulls back only the relevant slice, under a token budget, instead of re-dumping
+raw output. Pass a `MemoryStore` to the `Framework` to auto-index artifacts as they are
+written, and register a `retrieve` tool the model can call through the same policy-gated,
+bounded gateway as any other tool:
+
+```python
+from longterm_ai import Framework, MemoryStore, make_retrieve_tool
+
+store = MemoryStore()                       # opt-in; default store=None = unchanged behavior
+registry.register(make_retrieve_tool(store))
+fw = Framework(model, registry, policy, verifier, state_dir=state, store=store)
+# As tools run, truncated outputs are indexed; the model can later call
+# retrieve(query="...") to get a relevance-ranked, budget-bounded evidence block.
+```
+
+Direct use without the run loop:
+
+```python
+from longterm_ai import Document, MemoryStore, Retriever, assemble_context
+
+store = MemoryStore()
+store.index(Document(id="log1", text="disk usage at 92% on /var", source="shell"))
+ctx = assemble_context(Retriever(store), "disk usage", budget=500)
+```
+
 ## Scope & Roadmap
 
-### Implemented and Tested (Phase 0 + 1 + 2)
+### Implemented and Tested (Phase 0 + 1 + 2 + 3)
 - Core typed contracts and error taxonomy
 - Fail-closed policy engine and approval binding
 - Tool gateway with bounded envelopes, reducers, and artifact storage
@@ -227,11 +278,13 @@ docs/decisions/     Architecture Decision Records (0001-scope.md, 0002-phase2.md
 - Provider adapters (`OpenAIAdapter`, `AnthropicAdapter`, `GeminiAdapter`)
 - Provider-neutral durable handoffs (spec sections 22–25)
 - Command-line interface (`longterm`)
+- Retrieval engine ("retrieval-first" context assembly): BM25 over indexed evidence,
+  token-budget-bounded, with an opt-in `retrieve` tool and auto-indexing of tool artifacts
 
 ### Deferred (Phase 3+)
-- Retrieval/search engine ("retrieval-first" context assembly)
 - Semantic handoff checker layers 2–3 (requiring live evaluator model)
 - Multi-fixture benchmark suite
+- Embeddings / vector backend and a SQLite-backed memory store
 
 ---
 

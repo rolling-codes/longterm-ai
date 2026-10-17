@@ -33,6 +33,7 @@ class SqliteStoreTests(unittest.TestCase):
                 store.save(cp)
                 loaded = store.load("t1")
                 self.assertIsNotNone(loaded)
+                assert loaded is not None
                 self.assertEqual(loaded.task_id, "t1")
                 self.assertEqual(loaded.status, "running")
                 self.assertEqual(loaded.completed_steps, 3)
@@ -86,6 +87,7 @@ class SqliteStoreTests(unittest.TestCase):
                 store.save(_cp("t1", "running", 1))
                 store.save(_cp("t1", "completed", 5))
                 loaded = store.load("t1")
+                assert loaded is not None
                 self.assertEqual(loaded.status, "completed")
                 self.assertEqual(loaded.completed_steps, 5)
 
@@ -105,6 +107,7 @@ class SqliteStoreTests(unittest.TestCase):
                                 completed_steps=1, tool_log=log.to_list())
                 store.save(cp)
                 loaded = store.load("log_t")
+                assert loaded is not None
                 self.assertEqual(len(loaded.tool_log), 1)
                 self.assertEqual(loaded.tool_log[0]["tool"], "some_tool")
 
@@ -116,6 +119,7 @@ class SqliteStoreTests(unittest.TestCase):
                                 remaining_budget=None, deadline_s=None)
                 store.save(cp)
                 loaded = store.load("n")
+                assert loaded is not None
                 self.assertIsNone(loaded.remaining_budget)
                 self.assertIsNone(loaded.deadline_s)
 
@@ -127,7 +131,9 @@ class SqliteStoreTests(unittest.TestCase):
                                 remaining_budget=500, deadline_s=3600.0)
                 store.save(cp)
                 loaded = store.load("v")
+                assert loaded is not None
                 self.assertEqual(loaded.remaining_budget, 500)
+                assert loaded.deadline_s is not None
                 self.assertAlmostEqual(loaded.deadline_s, 3600.0)
 
 
